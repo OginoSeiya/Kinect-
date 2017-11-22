@@ -34,7 +34,7 @@ namespace Wpf_KinectV2_SimpleColorImage
     public partial class MainWindow : Window
     {
         /// <summary>
-        /// Kinect 本体への参照。
+        /// 以下Mainまで宣言部
         /// </summary>
         KinectSensor kinect;
 
@@ -54,23 +54,13 @@ namespace Wpf_KinectV2_SimpleColorImage
 
 		private List<Ellipse> _points = new List<Ellipse>();
 
+		//ファイルオープン
 		public StreamWriter sw = new StreamWriter(@"c:\users\abelab\desktop\log\log_audio_ver.csv", false, Encoding.GetEncoding("utf-8"));
 
 		private AudioBeamFrameReader audioBeamFrameReader;
 		private byte[] audioBuffer;
-
 		
-		/*
-		private MeshGeometry3D _Geometry3d;
-		public MeshGeometry3D Geometry3d
-		{
-			get { return this._Geometry3d; }
-			set
-			{
-				this._Geometry3d = value;
-			}
-		}
-		*/
+
 		/// <summary>
 		/// 取得するカラー画像の詳細情報。
 		/// </summary>
@@ -110,6 +100,7 @@ namespace Wpf_KinectV2_SimpleColorImage
 			audioBuffer = new byte[kinect.AudioSource.SubFrameLengthInBytes];
 			audioBeamFrameReader = kinect.AudioSource.OpenReader();
 			audioBeamFrameReader.FrameArrived += audioBeamFrameReader_FrameArrived;
+			// isPaused が true なら録音ストップ、false なら書き込み
 			audioBeamFrameReader.IsPaused = true;
 			waveFile.Open(@"c:\users\abelab\desktop\log\kinect_audio.wav");
 
@@ -129,36 +120,9 @@ namespace Wpf_KinectV2_SimpleColorImage
 			}
 
 			//Kinect の動作を開始する。
-			//aviWriter.FrameRate = 30;
-			//aviWriter.Open(@"c:\users\abelab\desktop\log\test.avi", 1920, 1080);
-			//writer.Open(@"c:\users\abelab\desktop\log\test.avi", 1920, 1080, 30, VideoCodec.MPEG4);
-			/*
-			for (int i=0; i<1347; i++)
-			{
-				sw.Write(i + ",,,,,,");
-			}
-			sw.WriteLine();
-			for(int i=0; i<1347; i++)
-			{
-				sw.Write("X(m),Y(m),Z(m),X(pixel),Y(pixel),,");
-			}
-			sw.WriteLine();
-			*/
+
 			this.kinect.Open();
         }
-
-		/*
-		public static Bitmap toBitmap(byte[] pixel, int width, int height)
-		{
-			if (pixel == null) return null;
-
-			var bitmap = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format32bppRgb);
-			var data = bitmap.LockBits(new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadWrite, bitmap.PixelFormat);
-			Marshal.Copy(pixel, 0, data.Scan0, pixel.Length);
-			bitmap.UnlockBits(data);
-			return bitmap;
-		}
-		*/
 
 
         /// <summary>
@@ -201,12 +165,7 @@ namespace Wpf_KinectV2_SimpleColorImage
                                       null,
                                       colors,
                                       this.colorFrameDescription.Width * (int)this.colorFrameDescription.BytesPerPixel);
-			//Bitmap image = new Bitmap(colorFrameDescription.Width, colorFrameDescription.Height, System.Drawing.Imaging.PixelFormat.Format32bppRgb);
-			//writer.WriteVideoFrame(image);
-			//imageBitmap = toBitmap(colors, imageBitmap.Width, imageBitmap.Height);
-			//imageBitmap.Save(@"c:\users\abelab\desktop\log\picture\image_" + count + ".bmp", ImageFormat.Bmp);
-			//count++;
-			//aviWriter.AddFrame(imageBitmap);
+
             //キャンバスに表示する。
             this.canvas.Background = new ImageBrush(bitmapSource);
 			
@@ -223,14 +182,16 @@ namespace Wpf_KinectV2_SimpleColorImage
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
+	    		//csvファイルクローズ
 			sw.Close();
+			//wavファイルクローズ
 			waveFile.Close();
 			waveFile = null;
 
 			//カラー画像の取得を中止して、関連するリソースを破棄する。
 			if (this.colorFrameReader != null) 
             {
-				//aviWriter.Dispose();
+
                 this.colorFrameReader.Dispose();
                 this.colorFrameReader = null;
             }
@@ -238,13 +199,13 @@ namespace Wpf_KinectV2_SimpleColorImage
             //Kinect を停止して、関連するリソースを破棄する。
             if (this.kinect != null)
             {
-				//writer.Close();
-				//aviWriter.Close();
+
                 this.kinect.Close();
                 this.kinect = null;
             }
         }
 
+		// 骨格情報検出
 		private void BodyReader_FrameArrived(object sender, BodyFrameArrivedEventArgs e)
 		{
 			using (var frame = e.FrameReference.AcquireFrame())
@@ -266,7 +227,8 @@ namespace Wpf_KinectV2_SimpleColorImage
 				}
 			}
 		}
-
+		
+		// 顔検出　& 録音関数呼び出し & ログデータ書き込み
 		private void FaceReader_FrameArrived(object sender, HighDefinitionFaceFrameArrivedEventArgs e)
 		{
 			using (var frame = e.FrameReference.AcquireFrame())
@@ -284,12 +246,8 @@ namespace Wpf_KinectV2_SimpleColorImage
 					for (int index = 0; index < vertices.Count; index++)
 					{
 						var vert = vertices[index];
-						/*
-						vert.X = vert.X / vert.Z;
-						vert.Y = vert.Y / vert.Z;
-						vert.Z = vert.Z / vert.Z;
-						*/
-						//this._Geometry3d.Positions[index] = new Point3D(vert.X, vert.Y, -vert.Z);
+						
+						// 書き込み
 						sw.Write(vert.X + "," + vert.Y + "," + vert.Z + ",");
 
 						CameraSpacePoint vertice = vert;
@@ -306,6 +264,7 @@ namespace Wpf_KinectV2_SimpleColorImage
 			}
 		}
 
+		// 音検出（録音）
 		private void audioBeamFrameReader_FrameArrived(object sender, AudioBeamFrameArrivedEventArgs e)
 		{
 			using( var audioFrame = e.FrameReference.AcquireBeamFrames() as AudioBeamFrameList)
@@ -328,9 +287,9 @@ namespace Wpf_KinectV2_SimpleColorImage
 								waveFile.Write(audioBuffer);
 
 								// (例)実際のデータは32bit IEEE floatデータなので変換する
-								float audioData1 = BitConverter.ToSingle(audioBuffer, 0);
-								float audioData2 = BitConverter.ToSingle(audioBuffer, 4);
-								float audioData3 = BitConverter.ToSingle(audioBuffer, 8);
+								//float audioData1 = BitConverter.ToSingle(audioBuffer, 0);
+								//float audioData2 = BitConverter.ToSingle(audioBuffer, 4);
+								//float audioData3 = BitConverter.ToSingle(audioBuffer, 8);
 
 							}
 						}
@@ -339,6 +298,7 @@ namespace Wpf_KinectV2_SimpleColorImage
 			}
 		}
 
+		//キャンバスに顔特徴点を表示 & 更新
 		private void UpdateFacePoints()
 		{
 			if (_faceModel == null) return;
